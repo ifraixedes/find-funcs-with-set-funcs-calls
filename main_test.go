@@ -206,7 +206,7 @@ func TestFind(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		list, err := find(cmdp)
+		list, err := find(cmdp.pkgsPatterns, cmdp.funcCalls)
 		require.NoError(t, err)
 		require.Len(t, list, 1)
 
@@ -233,7 +233,7 @@ func TestFind(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		list, err := find(cmdp)
+		list, err := find(cmdp.pkgsPatterns, cmdp.funcCalls)
 		require.NoError(t, err)
 		require.Empty(t, list)
 	})

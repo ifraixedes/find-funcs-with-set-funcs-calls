@@ -25,7 +25,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	funcsFiles, err := find(cmdp)
+	funcsFiles, err := find(cmdp.pkgsPatterns, cmdp.funcCalls)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -147,20 +147,20 @@ func parseFuncCalls(funcCallsFlagVal string) ([]funcCall, error) {
 	return funcCalls, nil
 }
 
-func find(cmdp cmdParams) ([]funcsByFile, error) {
+func find(pkgsPatterns []string, funcCalls []funcCall) ([]funcsByFile, error) {
 	pkgs, err := packages.Load(&packages.Config{
 		Mode: packages.NeedCompiledGoFiles | packages.NeedSyntax | packages.NeedName |
 			packages.NeedTypes | packages.NeedTypesInfo,
-	}, cmdp.pkgsPatterns...)
+	}, pkgsPatterns...)
 	if err != nil {
 		return nil, fmt.Errorf("error while loading packages: [%s]. %s",
-			strings.Join(cmdp.pkgsPatterns, ", "), err,
+			strings.Join(pkgsPatterns, ", "), err,
 		)
 	}
 
 	var funcsFiles []funcsByFile
 	for _, p := range pkgs {
-		ff, err := findFuncsNamesWhichCallFuncsSet(p, cmdp.funcCalls)
+		ff, err := findFuncsNamesWhichCallFuncsSet(p, funcCalls)
 		if err != nil {
 			return nil, err
 		}
