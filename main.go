@@ -37,6 +37,7 @@ func main() {
 type cmdParams struct {
 	pkgsPatterns []string
 	funcCalls    []funcCall
+	subsetsOf    uint
 }
 
 type funcCall struct {
@@ -57,6 +58,9 @@ func params(inParams []string) (cmdParams, error) {
 	funcs := fset.String("funcs", "",
 		"the list of the functions to find where are all called inside of a function. It's a comma separated list of: pkg.[type.].func",
 	)
+	subsetsOf := fset.Uint("sub", 0,
+		"search for functions which any subset of functions calls of the indicated number. 0 is not subsets.",
+	)
 
 	if err := fset.Parse(inParams); err != nil {
 		return cmdParams{}, err
@@ -74,6 +78,7 @@ func params(inParams []string) (cmdParams, error) {
 	return cmdParams{
 		pkgsPatterns: fset.Args(),
 		funcCalls:    fcalls,
+		subsetsOf:    *subsetsOf,
 	}, nil
 }
 
