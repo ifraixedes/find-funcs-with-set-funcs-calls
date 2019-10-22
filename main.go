@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"go/ast"
+	"go/token"
 	"go/types"
 	"log"
 	"os"
@@ -215,7 +216,7 @@ func findFuncsNamesWhichCallFuncsSet(pkg *packages.Package, funcCalls []funcCall
 
 			// TODO: could be more optimal when visiting a func defined in f, check
 			// if has calls to all funcCalls
-			fnames, err := funcsNamesWithCallFunc(f, fc, pkg.TypesInfo)
+			fnames, err := funcsNamesWithCallFunc(f, fc, pkg.TypesInfo, pkg.Fset)
 			if err != nil {
 				fname := filepath.Join(pkg.PkgPath, filepath.Base(pkg.CompiledGoFiles[i]))
 				return nil, fmt.Errorf("%v. Source file: %s", err, fname)
@@ -246,7 +247,10 @@ func findFuncsNamesWhichCallFuncsSet(pkg *packages.Package, funcCalls []funcCall
 	return funcsFiles, nil
 }
 
-func funcsNamesWithCallFunc(file *ast.File, fnCall funcCall, typesInfo *types.Info) ([]string, error) {
+// funcsNamesWithCallFunc walcks the file for finding functions which call fnCall.
+//
+// fset is only used for debugging purpose.
+func funcsNamesWithCallFunc(file *ast.File, fnCall funcCall, typesInfo *types.Info, fset *token.FileSet) ([]string, error) {
 	var funcNames []string
 	for _, d := range file.Decls {
 		fdecl, ok := d.(*ast.FuncDecl)
@@ -254,7 +258,7 @@ func funcsNamesWithCallFunc(file *ast.File, fnCall funcCall, typesInfo *types.In
 			continue
 		}
 
-		ok, err := hasFuncSetCalls(fdecl.Body, fnCall, file.Imports, typesInfo)
+		ok, err := hasFuncSetCalls(fdecl.Body, fnCall, file.Imports, typesInfo, fset)
 		if err != nil {
 			return nil, err
 		}
@@ -271,10 +275,12 @@ func funcsNamesWithCallFunc(file *ast.File, fnCall funcCall, typesInfo *types.In
 // the packages imported by the file where fnCall is defined and typesInfo holds
 // the type information of the package where fnCall is defined.
 //
+// fset is used only for debugging purpose.
+//
 // fnCall.pkg must be set to empty string if the function is defined in the
 // same package that the function to inspect.
 func hasFuncSetCalls(
-	body *ast.BlockStmt, fnCall funcCall, imports []*ast.ImportSpec, typesInfo *types.Info,
+	body *ast.BlockStmt, fnCall funcCall, imports []*ast.ImportSpec, typesInfo *types.Info, fset *token.FileSet,
 ) (bool, error) {
 	var (
 		found    bool
@@ -299,6 +305,24 @@ func hasFuncSetCalls(
 			return false
 		}
 
+		if _, ok := callExpr.Fun.(*ast.CallExpr); ok {
+			// TODO: Implement this case, it's happening when there is a defer call
+			// of a method
+			return true
+		}
+
+		if _, ok := callExpr.Fun.(*ast.ArrayType); ok {
+			// TODO: Implement this case
+			return true
+		}
+
+		if _, ok := callExpr.Fun.(*ast.FuncLit); ok {
+			// TODO: Implement this case,it's happening when there is a defer call
+			// of an inline declared function
+			//ast.Print(fset, n)
+			return true
+		}
+
 		sel := callExpr.Fun.(*ast.SelectorExpr)
 
 		// receiver is a field of a struct type
@@ -306,6 +330,13 @@ func hasFuncSetCalls(
 			typ := typesInfo.TypeOf(selx.X)
 			if ptyp, ok := typ.(*types.Pointer); ok {
 				typ = ptyp.Elem()
+			}
+
+			if _, ok := typ.Underlying().(*types.Basic); ok {
+				// TODO: Implement this case, it's happening when the selector is a
+				// package name which I don't understand because in my tests it was
+				//sel.X was an *ast.Ident
+				return true
 			}
 
 			var typeRef string
@@ -325,15 +356,16 @@ func hasFuncSetCalls(
 					errToRet = err
 				}
 
-				return false
+				return true
 			}
 
 			if fnCall.pkg == pkg && fnCall.receiver == typName &&
 				fnCall.funcName == sel.Sel.Name {
 				found = true
+				return false
 			}
 
-			return false
+			return true
 		}
 
 		// receiver is a package or a var
@@ -348,7 +380,7 @@ func hasFuncSetCalls(
 					}
 				}
 
-				return false
+				return true
 			}
 
 			typeRef := typesInfo.ObjectOf(ident).Type().String()
@@ -359,18 +391,19 @@ func hasFuncSetCalls(
 					errToRet = err
 				}
 
-				return false
+				return true
 			}
 
 			if fnCall.pkg == pkg && fnCall.receiver == typ &&
 				fnCall.funcName == sel.Sel.Name {
 				found = true
+				return false
 			}
 
-			return false
+			return true
 		}
 
-		return false
+		return true
 	})
 
 	return found, errToRet
