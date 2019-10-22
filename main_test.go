@@ -206,7 +206,7 @@ func TestFind(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		list, err := find(cmdp)
+		list, err := find(cmdp.pkgsPatterns, cmdp.funcCalls)
 		require.NoError(t, err)
 		require.Len(t, list, 1)
 
@@ -233,8 +233,206 @@ func TestFind(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		list, err := find(cmdp)
+		list, err := find(cmdp.pkgsPatterns, cmdp.funcCalls)
 		require.NoError(t, err)
 		require.Empty(t, list)
 	})
+}
+
+func TestCreateSubsets(t *testing.T) {
+	type inparams struct {
+		fnCalls  []funcCall
+		numElems uint
+	}
+	tcases := []struct {
+		name     string
+		in       inparams
+		expected [][]funcCall
+	}{
+		{
+			name: "numElems is 0",
+			in: inparams{
+				fnCalls: []funcCall{
+					{pkg: "a", funcName: "f1"},
+					{pkg: "a", receiver: "r1", funcName: "f1"},
+					{pkg: "b", funcName: "f1"},
+				},
+				numElems: 0,
+			},
+			expected: [][]funcCall{
+				[]funcCall{
+					{pkg: "a", funcName: "f1"},
+					{pkg: "a", receiver: "r1", funcName: "f1"},
+					{pkg: "b", funcName: "f1"},
+				},
+			},
+		},
+		{
+			name: "numElems is equal length func calls",
+			in: inparams{
+				fnCalls: []funcCall{
+					{pkg: "a", funcName: "f1"},
+					{pkg: "a", receiver: "r1", funcName: "f1"},
+					{pkg: "b", funcName: "f1"},
+				},
+				numElems: 3,
+			},
+			expected: [][]funcCall{
+				[]funcCall{
+					{pkg: "a", funcName: "f1"},
+					{pkg: "a", receiver: "r1", funcName: "f1"},
+					{pkg: "b", funcName: "f1"},
+				},
+			},
+		},
+		{
+			name: "numElem is less than the length of func calls",
+			in: inparams{
+				fnCalls: []funcCall{
+					{pkg: "a", funcName: "f"},
+					{pkg: "b", receiver: "r", funcName: "f"},
+					{pkg: "c", funcName: "f"},
+					{pkg: "d", receiver: "r", funcName: "f"},
+					{pkg: "e", funcName: "f"},
+				},
+				numElems: 2,
+			},
+			expected: [][]funcCall{
+				[]funcCall{
+					{pkg: "a", funcName: "f"},
+					{pkg: "b", receiver: "r", funcName: "f"},
+				},
+				[]funcCall{
+					{pkg: "a", funcName: "f"},
+					{pkg: "c", funcName: "f"},
+				},
+				[]funcCall{
+					{pkg: "a", funcName: "f"},
+					{pkg: "d", receiver: "r", funcName: "f"},
+				},
+				[]funcCall{
+					{pkg: "a", funcName: "f"},
+					{pkg: "e", funcName: "f"},
+				},
+				[]funcCall{
+					{pkg: "b", receiver: "r", funcName: "f"},
+					{pkg: "c", funcName: "f"},
+				},
+				[]funcCall{
+					{pkg: "b", receiver: "r", funcName: "f"},
+					{pkg: "d", receiver: "r", funcName: "f"},
+				},
+				[]funcCall{
+					{pkg: "b", receiver: "r", funcName: "f"},
+					{pkg: "e", funcName: "f"},
+				},
+				[]funcCall{
+					{pkg: "c", funcName: "f"},
+					{pkg: "d", receiver: "r", funcName: "f"},
+				},
+				[]funcCall{
+					{pkg: "c", funcName: "f"},
+					{pkg: "e", funcName: "f"},
+				},
+				[]funcCall{
+					{pkg: "d", receiver: "r", funcName: "f"},
+					{pkg: "e", funcName: "f"},
+				},
+			},
+		},
+		{
+			name: "numElem almost length of func calls",
+			in: inparams{
+				fnCalls: []funcCall{
+					{pkg: "a"}, {pkg: "b"}, {pkg: "c"}, {pkg: "d"}, {pkg: "e"},
+				},
+				numElems: 4,
+			},
+			expected: [][]funcCall{
+				[]funcCall{{pkg: "a"}, {pkg: "b"}, {pkg: "c"}, {pkg: "d"}},
+				[]funcCall{{pkg: "a"}, {pkg: "b"}, {pkg: "c"}, {pkg: "e"}},
+				[]funcCall{{pkg: "a"}, {pkg: "b"}, {pkg: "d"}, {pkg: "e"}},
+				[]funcCall{{pkg: "a"}, {pkg: "c"}, {pkg: "d"}, {pkg: "e"}},
+				[]funcCall{{pkg: "b"}, {pkg: "c"}, {pkg: "d"}, {pkg: "e"}},
+			},
+		},
+	}
+
+	for _, tc := range tcases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			subsets := createSubsets(tc.in.fnCalls, tc.in.numElems)
+			require.Len(t, subsets, len(tc.expected))
+			require.Equal(t, tc.expected, subsets)
+		})
+	}
+}
+
+func TestMergeFuncsByFiles(t *testing.T) {
+	type inparams struct {
+		a []funcsByFile
+		b []funcsByFile
+	}
+	tcases := []struct {
+		name     string
+		in       inparams
+		expected []funcsByFile
+	}{
+		{
+			name: "don't have same files",
+			in: inparams{
+				a: []funcsByFile{{Filename: "a.go", FuncNames: []string{"AFunc", "bFunc"}}},
+				b: []funcsByFile{{Filename: "b.go", FuncNames: []string{"AFunc", "bFunc"}}},
+			},
+			expected: []funcsByFile{
+				{Filename: "a.go", FuncNames: []string{"AFunc", "bFunc"}},
+				{Filename: "b.go", FuncNames: []string{"AFunc", "bFunc"}},
+			},
+		},
+		{
+			name: "have some same files",
+			in: inparams{
+				a: []funcsByFile{
+					{Filename: "a.go", FuncNames: []string{"AFunc", "bFunc"}},
+					{Filename: "c.go", FuncNames: []string{"AFunc", "bFunc"}},
+				},
+				b: []funcsByFile{{Filename: "a.go", FuncNames: []string{"aFunc", "BFunc"}}},
+			},
+			expected: []funcsByFile{
+				{Filename: "a.go", FuncNames: []string{"AFunc", "BFunc", "aFunc", "bFunc"}},
+				{Filename: "c.go", FuncNames: []string{"AFunc", "bFunc"}},
+			},
+		},
+		{
+			name: "have some same files and same funcs",
+			in: inparams{
+				a: []funcsByFile{
+					{Filename: "a.go", FuncNames: []string{"AFunc", "bFunc"}},
+					{Filename: "c.go", FuncNames: []string{"AFunc", "bFunc"}},
+				},
+				b: []funcsByFile{{Filename: "c.go", FuncNames: []string{"AFunc", "BFunc"}}},
+			},
+			expected: []funcsByFile{
+				{Filename: "a.go", FuncNames: []string{"AFunc", "bFunc"}},
+				{Filename: "c.go", FuncNames: []string{"AFunc", "BFunc", "bFunc"}},
+			},
+		},
+		{
+			name: "totally equal",
+			in: inparams{
+				a: []funcsByFile{{Filename: "a.go", FuncNames: []string{"AFunc", "bFunc"}}},
+				b: []funcsByFile{{Filename: "a.go", FuncNames: []string{"AFunc", "bFunc"}}},
+			},
+			expected: []funcsByFile{{Filename: "a.go", FuncNames: []string{"AFunc", "bFunc"}}},
+		},
+	}
+
+	for _, tc := range tcases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			merge := mergeFuncsByFiles(tc.in.a, tc.in.b)
+			require.Len(t, merge, len(tc.expected))
+			require.Equal(t, tc.expected, merge)
+		})
+	}
 }
