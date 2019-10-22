@@ -431,6 +431,15 @@ func TestMergeFuncsByFiles(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			merge := mergeFuncsByFiles(tc.in.a, tc.in.b)
+
+			sort.Slice(merge, func(i, j int) bool {
+				return merge[i].Filename < merge[j].Filename
+			})
+
+			sort.Slice(tc.expected, func(i, j int) bool {
+				return tc.expected[i].Filename < tc.expected[j].Filename
+			})
+
 			require.Len(t, merge, len(tc.expected))
 			require.Equal(t, tc.expected, merge)
 		})
