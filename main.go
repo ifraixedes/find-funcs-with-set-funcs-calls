@@ -456,3 +456,46 @@ func splitPackageAndType(pkgPathType string) (pkgPath, typ string, _ error) {
 
 	return pkgPathType[:i], pkgPathType[i+1:], nil
 }
+
+// createSubsets creates all the possible combinations of function calls sets of
+// numElems elements. If numElems is 0 or greater or equal than fnCalls length
+// only one subset equal to fnCalls is returned.
+func createSubsets(fnCalls []funcCall, numElems uint) [][]funcCall {
+	if numElems == 0 || len(fnCalls) <= int(numElems) {
+		return [][]funcCall{fnCalls}
+	}
+
+	var subsets [][]funcCall
+	for i := range fnCalls {
+		// There is only remaining elements to create the last subset
+		if (i + int(numElems)) >= len(fnCalls) {
+			subsets = append(subsets, fnCalls[i:])
+			break
+		}
+
+		for j := i + int(numElems) - 1; j > i; j-- {
+			fixElems := fnCalls[i:j]
+
+			var base int
+			if len(fixElems) == (int(numElems) - 1) {
+				base = j
+			} else {
+				base = j + 1
+			}
+
+			for k := base; k <= (len(fnCalls) - (int(numElems) - len(fixElems))); k++ {
+				elems := make([]funcCall, len(fixElems), int(numElems))
+				copy(elems, fixElems)
+
+				for m := k; len(elems) < int(numElems); m++ {
+					elems = append(elems, fnCalls[m])
+				}
+
+				subsets = append(subsets, elems)
+			}
+		}
+
+	}
+
+	return subsets
+}

@@ -238,3 +238,132 @@ func TestFind(t *testing.T) {
 		require.Empty(t, list)
 	})
 }
+
+func TestCreateSubsets(t *testing.T) {
+	type inparams struct {
+		fnCalls  []funcCall
+		numElems uint
+	}
+	tcases := []struct {
+		name     string
+		in       inparams
+		expected [][]funcCall
+	}{
+		{
+			name: "numElems is 0",
+			in: inparams{
+				fnCalls: []funcCall{
+					{pkg: "a", funcName: "f1"},
+					{pkg: "a", receiver: "r1", funcName: "f1"},
+					{pkg: "b", funcName: "f1"},
+				},
+				numElems: 0,
+			},
+			expected: [][]funcCall{
+				[]funcCall{
+					{pkg: "a", funcName: "f1"},
+					{pkg: "a", receiver: "r1", funcName: "f1"},
+					{pkg: "b", funcName: "f1"},
+				},
+			},
+		},
+		{
+			name: "numElems is equal length func calls",
+			in: inparams{
+				fnCalls: []funcCall{
+					{pkg: "a", funcName: "f1"},
+					{pkg: "a", receiver: "r1", funcName: "f1"},
+					{pkg: "b", funcName: "f1"},
+				},
+				numElems: 3,
+			},
+			expected: [][]funcCall{
+				[]funcCall{
+					{pkg: "a", funcName: "f1"},
+					{pkg: "a", receiver: "r1", funcName: "f1"},
+					{pkg: "b", funcName: "f1"},
+				},
+			},
+		},
+		{
+			name: "numElem is less than the length of func calls",
+			in: inparams{
+				fnCalls: []funcCall{
+					{pkg: "a", funcName: "f"},
+					{pkg: "b", receiver: "r", funcName: "f"},
+					{pkg: "c", funcName: "f"},
+					{pkg: "d", receiver: "r", funcName: "f"},
+					{pkg: "e", funcName: "f"},
+				},
+				numElems: 2,
+			},
+			expected: [][]funcCall{
+				[]funcCall{
+					{pkg: "a", funcName: "f"},
+					{pkg: "b", receiver: "r", funcName: "f"},
+				},
+				[]funcCall{
+					{pkg: "a", funcName: "f"},
+					{pkg: "c", funcName: "f"},
+				},
+				[]funcCall{
+					{pkg: "a", funcName: "f"},
+					{pkg: "d", receiver: "r", funcName: "f"},
+				},
+				[]funcCall{
+					{pkg: "a", funcName: "f"},
+					{pkg: "e", funcName: "f"},
+				},
+				[]funcCall{
+					{pkg: "b", receiver: "r", funcName: "f"},
+					{pkg: "c", funcName: "f"},
+				},
+				[]funcCall{
+					{pkg: "b", receiver: "r", funcName: "f"},
+					{pkg: "d", receiver: "r", funcName: "f"},
+				},
+				[]funcCall{
+					{pkg: "b", receiver: "r", funcName: "f"},
+					{pkg: "e", funcName: "f"},
+				},
+				[]funcCall{
+					{pkg: "c", funcName: "f"},
+					{pkg: "d", receiver: "r", funcName: "f"},
+				},
+				[]funcCall{
+					{pkg: "c", funcName: "f"},
+					{pkg: "e", funcName: "f"},
+				},
+				[]funcCall{
+					{pkg: "d", receiver: "r", funcName: "f"},
+					{pkg: "e", funcName: "f"},
+				},
+			},
+		},
+		{
+			name: "numElem almost length of func calls",
+			in: inparams{
+				fnCalls: []funcCall{
+					{pkg: "a"}, {pkg: "b"}, {pkg: "c"}, {pkg: "d"}, {pkg: "e"},
+				},
+				numElems: 4,
+			},
+			expected: [][]funcCall{
+				[]funcCall{{pkg: "a"}, {pkg: "b"}, {pkg: "c"}, {pkg: "d"}},
+				[]funcCall{{pkg: "a"}, {pkg: "b"}, {pkg: "c"}, {pkg: "e"}},
+				[]funcCall{{pkg: "a"}, {pkg: "b"}, {pkg: "d"}, {pkg: "e"}},
+				[]funcCall{{pkg: "a"}, {pkg: "c"}, {pkg: "d"}, {pkg: "e"}},
+				[]funcCall{{pkg: "b"}, {pkg: "c"}, {pkg: "d"}, {pkg: "e"}},
+			},
+		},
+	}
+
+	for _, tc := range tcases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			subsets := createSubsets(tc.in.fnCalls, tc.in.numElems)
+			require.Len(t, subsets, len(tc.expected))
+			require.Equal(t, tc.expected, subsets)
+		})
+	}
+}
