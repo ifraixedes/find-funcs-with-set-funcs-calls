@@ -367,3 +367,72 @@ func TestCreateSubsets(t *testing.T) {
 		})
 	}
 }
+
+func TestMergeFuncsByFiles(t *testing.T) {
+	type inparams struct {
+		a []funcsByFile
+		b []funcsByFile
+	}
+	tcases := []struct {
+		name     string
+		in       inparams
+		expected []funcsByFile
+	}{
+		{
+			name: "don't have same files",
+			in: inparams{
+				a: []funcsByFile{{Filename: "a.go", FuncNames: []string{"AFunc", "bFunc"}}},
+				b: []funcsByFile{{Filename: "b.go", FuncNames: []string{"AFunc", "bFunc"}}},
+			},
+			expected: []funcsByFile{
+				{Filename: "a.go", FuncNames: []string{"AFunc", "bFunc"}},
+				{Filename: "b.go", FuncNames: []string{"AFunc", "bFunc"}},
+			},
+		},
+		{
+			name: "have some same files",
+			in: inparams{
+				a: []funcsByFile{
+					{Filename: "a.go", FuncNames: []string{"AFunc", "bFunc"}},
+					{Filename: "c.go", FuncNames: []string{"AFunc", "bFunc"}},
+				},
+				b: []funcsByFile{{Filename: "a.go", FuncNames: []string{"aFunc", "BFunc"}}},
+			},
+			expected: []funcsByFile{
+				{Filename: "a.go", FuncNames: []string{"AFunc", "BFunc", "aFunc", "bFunc"}},
+				{Filename: "c.go", FuncNames: []string{"AFunc", "bFunc"}},
+			},
+		},
+		{
+			name: "have some same files and same funcs",
+			in: inparams{
+				a: []funcsByFile{
+					{Filename: "a.go", FuncNames: []string{"AFunc", "bFunc"}},
+					{Filename: "c.go", FuncNames: []string{"AFunc", "bFunc"}},
+				},
+				b: []funcsByFile{{Filename: "c.go", FuncNames: []string{"AFunc", "BFunc"}}},
+			},
+			expected: []funcsByFile{
+				{Filename: "a.go", FuncNames: []string{"AFunc", "bFunc"}},
+				{Filename: "c.go", FuncNames: []string{"AFunc", "BFunc", "bFunc"}},
+			},
+		},
+		{
+			name: "totally equal",
+			in: inparams{
+				a: []funcsByFile{{Filename: "a.go", FuncNames: []string{"AFunc", "bFunc"}}},
+				b: []funcsByFile{{Filename: "a.go", FuncNames: []string{"AFunc", "bFunc"}}},
+			},
+			expected: []funcsByFile{{Filename: "a.go", FuncNames: []string{"AFunc", "bFunc"}}},
+		},
+	}
+
+	for _, tc := range tcases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			merge := mergeFuncsByFiles(tc.in.a, tc.in.b)
+			require.Len(t, merge, len(tc.expected))
+			require.Equal(t, tc.expected, merge)
+		})
+	}
+}

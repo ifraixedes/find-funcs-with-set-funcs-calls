@@ -25,13 +25,20 @@ func main() {
 		log.Fatal(err)
 	}
 
-	funcsFiles, err := find(cmdp.pkgsPatterns, cmdp.funcCalls)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	subsets := createSubsets(cmdp.funcCalls, cmdp.subsetsOf)
+
+	var allFuncsFiles []funcsByFile
+	for _, funcCalls := range subsets {
+		funcFiles, err := find(cmdp.pkgsPatterns, funcCalls)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+
+		allFuncsFiles = mergeFuncsByFiles(allFuncsFiles, funcFiles)
 	}
 
-	fmt.Println(funcsFiles)
+	fmt.Println(allFuncsFiles)
 }
 
 type cmdParams struct {
@@ -498,4 +505,57 @@ func createSubsets(fnCalls []funcCall, numElems uint) [][]funcCall {
 	}
 
 	return subsets
+}
+
+// mergeFuncByFiles merge a and b and remove any duplication.
+// The list of functions of the returned funcsByFile is lexicographically
+// sorted.
+func mergeFuncsByFiles(a []funcsByFile, b []funcsByFile) []funcsByFile {
+	fbfMap := make(map[string]funcsByFile)
+	for _, fbf := range a {
+		if fbfm, ok := fbfMap[fbf.Filename]; ok {
+			fbfm.FuncNames = append(fbfm.FuncNames, fbf.FuncNames...)
+			fbfMap[fbf.Filename] = fbfm
+			continue
+		}
+
+		fbfMap[fbf.Filename] = fbf
+	}
+
+	for _, fbf := range b {
+		if fbfm, ok := fbfMap[fbf.Filename]; ok {
+			fbfm.FuncNames = append(fbfm.FuncNames, fbf.FuncNames...)
+			fbfMap[fbf.Filename] = fbfm
+			continue
+		}
+
+		fbfMap[fbf.Filename] = fbf
+	}
+
+	merged := make([]funcsByFile, 0, len(fbfMap))
+	for _, fbf := range fbfMap {
+		var idxToRemove []int
+		sort.Slice(fbf.FuncNames, func(i, j int) bool {
+			if fbf.FuncNames[i] == fbf.FuncNames[j] {
+				idxToRemove = append(idxToRemove, j)
+			}
+
+			return fbf.FuncNames[i] < fbf.FuncNames[j]
+		})
+
+		if len(idxToRemove) > 0 {
+
+			sort.Ints(idxToRemove)
+			idxDecrement := 0
+			for _, i := range idxToRemove {
+				j := i - idxDecrement
+				fbf.FuncNames = append(fbf.FuncNames[:j], fbf.FuncNames[j+1:]...)
+				idxDecrement++
+			}
+		}
+
+		merged = append(merged, fbf)
+	}
+
+	return merged
 }
