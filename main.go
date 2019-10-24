@@ -507,6 +507,11 @@ func createSubsets(fnCalls []funcCall, numElems uint) [][]funcCall {
 
 	var subsets [][]funcCall
 	for i := range fnCalls {
+		if numElems == 1 {
+			subsets = append(subsets, []funcCall{fnCalls[i]})
+			continue
+		}
+
 		// There is only remaining elements to create the last subset
 		if (i + int(numElems)) >= len(fnCalls) {
 			subsets = append(subsets, fnCalls[i:])
@@ -534,7 +539,6 @@ func createSubsets(fnCalls []funcCall, numElems uint) [][]funcCall {
 				subsets = append(subsets, elems)
 			}
 		}
-
 	}
 
 	return subsets
