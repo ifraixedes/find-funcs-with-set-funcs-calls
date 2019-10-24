@@ -28,6 +28,39 @@ func ExportedFunc() {
 	fmt.Println("hello")
 }
 
+// CallFuncByCalledFuncs ...
+func CallFuncByCalledFuncs(s string) {
+	sb := bufferFromString(s)
+
+	if s, ok := stringIfAreEqual(sb, bytes.NewBuffer([]byte("some"))); ok {
+		printString(s)
+	}
+}
+
+func stringIfAreEqual(b1 *bytes.Buffer, b2 *bytes.Buffer) (_ string, ok bool) {
+	if bufferLen(*b1) != bufferLen(*b2) {
+		return "", false
+	}
+
+	if strs.Compare(b1.String(), b2.String()) == 0 {
+		return b1.String(), true
+	}
+
+	return "", false
+}
+
+func bufferFromString(s string) *bytes.Buffer {
+	return bytes.NewBufferString(s)
+}
+
+func bufferLen(b bytes.Buffer) int {
+	return b.Len()
+}
+
+func printString(s string) {
+	fmt.Println(s)
+}
+
 type unexportedType string
 
 func (*unexportedType) unexportedMethod() {

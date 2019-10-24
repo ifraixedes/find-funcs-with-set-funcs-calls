@@ -237,6 +237,29 @@ func TestFind(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, list)
 	})
+
+	t.Run("finds a function having calls spread in called functions", func(t *testing.T) {
+		cmdp, err := params([]string{
+			"-funcs", "bytes.NewBufferString,bytes.Buffer.Len,strings.Compare,fmt.Println",
+			"github.com/ifraixedes/find-funcs-with-set-funcs-calls/testdata/testpkg",
+		})
+		require.NoError(t, err)
+
+		list, err := find(cmdp.pkgsPatterns, cmdp.funcCalls)
+		require.NoError(t, err)
+		require.Len(t, list, 1)
+
+		sort.Slice(list[0].FuncNames, func(i, j int) bool {
+			return list[0].FuncNames[i] < list[0].FuncNames[j]
+		})
+
+		expectedFuncs := []string{"CallFuncByCalledFuncs"}
+		sort.Slice(expectedFuncs, func(i, j int) bool {
+			return expectedFuncs[i] < expectedFuncs[j]
+		})
+
+		assert.Equal(t, expectedFuncs, list[0].FuncNames)
+	})
 }
 
 func TestCreateSubsets(t *testing.T) {
