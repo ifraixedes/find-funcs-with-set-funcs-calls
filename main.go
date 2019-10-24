@@ -103,8 +103,8 @@ func parseFuncCalls(funcCallsFlagVal string) ([]funcCall, error) {
 		if fpi >= 0 {
 			if fpi == (len(fcv) - 1) {
 				return nil, fmt.Errorf(
-					"Invalid function call reference, format is '<pkg path>.[<<type name>>.]<<func name>>'. Got: '%s'",
-					val,
+					"Invalid function call reference, format is '<pkg path>.[<<type name>>.]<<func name>>'. Got: %q (from: %q)",
+					val, funcCallsFlagVal,
 				)
 			}
 
@@ -115,8 +115,8 @@ func parseFuncCalls(funcCallsFlagVal string) ([]funcCall, error) {
 		fpi = strings.Index(fcv, ".")
 		if fpi < 0 || fpi == (len(fcv)-1) {
 			return nil, fmt.Errorf(
-				"Invalid function call reference, format is '<pkg path>.[<<type name>>.]<<func name>>'. Got: '%s'",
-				val,
+				"Invalid function call reference, format is '<pkg path>.[<<type name>>.]<<func name>>'. Got: %q (from: %q)",
+				val, funcCallsFlagVal,
 			)
 		}
 
@@ -131,15 +131,15 @@ func parseFuncCalls(funcCallsFlagVal string) ([]funcCall, error) {
 		switch {
 		case fpi == 0:
 			return nil, fmt.Errorf(
-				"Invalid function call reference, format is '<pkg path>.[<<type name>>.]<<func name>>'. Got: '%s'",
-				val,
+				"Invalid function call reference, format is '<pkg path>.[<<type name>>.]<<func name>>'. Got: %q (from: %q)",
+				val, funcCallsFlagVal,
 			)
 
 		case fpi > 0:
 			if fpi == len(fcv)-1 {
 				return nil, fmt.Errorf(
-					"Invalid function call reference, format is '<pkg path>.[<<type name>>.]<<func name>>'. Got: '%s'",
-					val,
+					"Invalid function call reference, format is '<pkg path>.[<<type name>>.]<<func name>>'. Got: %q (from: %q)",
+					val, funcCallsFlagVal,
 				)
 			}
 
@@ -258,7 +258,7 @@ func funcsNamesWithCallFunc(file *ast.File, fnCall funcCall, typesInfo *types.In
 			continue
 		}
 
-		ok, err := hasFuncSetCalls(fdecl.Body, fnCall, file.Imports, typesInfo, fset)
+		ok, err := hasFuncBodyFuncCall(fdecl.Body, fnCall, file.Imports, typesInfo, fset)
 		if err != nil {
 			return nil, err
 		}
@@ -271,15 +271,15 @@ func funcsNamesWithCallFunc(file *ast.File, fnCall funcCall, typesInfo *types.In
 	return funcNames, nil
 }
 
-// hasFuncSetCalls return true if fnCall is found in function body. imports are
-// the packages imported by the file where fnCall is defined and typesInfo holds
-// the type information of the package where fnCall is defined.
+// hasFuncBodyFuncCall return true if fnCall is found in function body.	imports
+// are the packages imported by the file where fnCall is defined and typesInfo
+// holds the type information of the package where fnCall is defined.
 //
 // fset is used only for debugging purpose.
 //
 // fnCall.pkg must be set to empty string if the function is defined in the
 // same package that the function to inspect.
-func hasFuncSetCalls(
+func hasFuncBodyFuncCall(
 	body *ast.BlockStmt, fnCall funcCall, imports []*ast.ImportSpec, typesInfo *types.Info, fset *token.FileSet,
 ) (bool, error) {
 	var (
