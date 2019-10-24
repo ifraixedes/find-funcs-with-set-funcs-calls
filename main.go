@@ -103,8 +103,8 @@ func parseFuncCalls(funcCallsFlagVal string) ([]funcCall, error) {
 		if fpi >= 0 {
 			if fpi == (len(fcv) - 1) {
 				return nil, fmt.Errorf(
-					"Invalid function call reference, format is '<pkg path>.[<<type name>>.]<<func name>>'. Got: '%s'",
-					val,
+					"Invalid function call reference, format is '<pkg path>.[<<type name>>.]<<func name>>'. Got: %q (from: %q)",
+					val, funcCallsFlagVal,
 				)
 			}
 
@@ -115,8 +115,8 @@ func parseFuncCalls(funcCallsFlagVal string) ([]funcCall, error) {
 		fpi = strings.Index(fcv, ".")
 		if fpi < 0 || fpi == (len(fcv)-1) {
 			return nil, fmt.Errorf(
-				"Invalid function call reference, format is '<pkg path>.[<<type name>>.]<<func name>>'. Got: '%s'",
-				val,
+				"Invalid function call reference, format is '<pkg path>.[<<type name>>.]<<func name>>'. Got: %q (from: %q)",
+				val, funcCallsFlagVal,
 			)
 		}
 
@@ -131,15 +131,15 @@ func parseFuncCalls(funcCallsFlagVal string) ([]funcCall, error) {
 		switch {
 		case fpi == 0:
 			return nil, fmt.Errorf(
-				"Invalid function call reference, format is '<pkg path>.[<<type name>>.]<<func name>>'. Got: '%s'",
-				val,
+				"Invalid function call reference, format is '<pkg path>.[<<type name>>.]<<func name>>'. Got: %q (from: %q)",
+				val, funcCallsFlagVal,
 			)
 
 		case fpi > 0:
 			if fpi == len(fcv)-1 {
 				return nil, fmt.Errorf(
-					"Invalid function call reference, format is '<pkg path>.[<<type name>>.]<<func name>>'. Got: '%s'",
-					val,
+					"Invalid function call reference, format is '<pkg path>.[<<type name>>.]<<func name>>'. Got: %q (from: %q)",
+					val, funcCallsFlagVal,
 				)
 			}
 
