@@ -283,11 +283,26 @@ func hasFuncBodyFuncCall(
 	body *ast.BlockStmt, fnCall funcCall, imports []*ast.ImportSpec, typesInfo *types.Info, fset *token.FileSet,
 ) (bool, error) {
 	var (
-		found    bool
-		errToRet error
+		// calledFuncsToSearch = []ast.Node{}
+		hasNodeFC = &hasNodeFuncCall{}
 	)
-	ast.Inspect(body, func(n ast.Node) bool {
-		if n == nil || found || errToRet != nil {
+
+	ast.Inspect(body, hasNodeFC.inspectFn(fnCall, imports, typesInfo, fset))
+
+	return hasNodeFC.found, hasNodeFC.err
+}
+
+type hasNodeFuncCall struct {
+	found       bool
+	err         error
+	funcsToDeep []ast.Node
+}
+
+func (hasNodeFC *hasNodeFuncCall) inspectFn(
+	fnCall funcCall, imports []*ast.ImportSpec, typesInfo *types.Info, fset *token.FileSet,
+) func(ast.Node) bool {
+	return func(n ast.Node) bool {
+		if n == nil || hasNodeFC.found || hasNodeFC.err != nil {
 			return false
 		}
 
@@ -299,7 +314,7 @@ func hasFuncBodyFuncCall(
 		// it's a function defined in the same package
 		if ident, ok := callExpr.Fun.(*ast.Ident); ok {
 			if fnCall.pkg == "" && fnCall.receiver == "" && fnCall.funcName == ident.Name {
-				found = true
+				hasNodeFC.found = true
 			}
 
 			return false
@@ -352,8 +367,8 @@ func hasFuncBodyFuncCall(
 			typeRef = removeStartingStar(typeRef)
 			pkg, typName, err := splitPackageAndType(typeRef)
 			if err != nil {
-				if errToRet != nil {
-					errToRet = err
+				if hasNodeFC.err != nil {
+					hasNodeFC.err = err
 				}
 
 				return true
@@ -361,7 +376,7 @@ func hasFuncBodyFuncCall(
 
 			if fnCall.pkg == pkg && fnCall.receiver == typName &&
 				fnCall.funcName == sel.Sel.Name {
-				found = true
+				hasNodeFC.found = true
 				return false
 			}
 
@@ -375,7 +390,7 @@ func hasFuncBodyFuncCall(
 				for _, imp := range imports {
 					if fnCall.pkg == strings.Trim(imp.Path.Value, `"`) &&
 						fnCall.funcName == sel.Sel.Name {
-						found = true
+						hasNodeFC.found = true
 						return false
 					}
 				}
@@ -387,8 +402,8 @@ func hasFuncBodyFuncCall(
 			typeRef = removeStartingStar(typeRef)
 			pkg, typ, err := splitPackageAndType(typeRef)
 			if err != nil {
-				if errToRet != nil {
-					errToRet = err
+				if hasNodeFC.err != nil {
+					hasNodeFC.err = err
 				}
 
 				return true
@@ -396,7 +411,7 @@ func hasFuncBodyFuncCall(
 
 			if fnCall.pkg == pkg && fnCall.receiver == typ &&
 				fnCall.funcName == sel.Sel.Name {
-				found = true
+				hasNodeFC.found = true
 				return false
 			}
 
@@ -404,9 +419,7 @@ func hasFuncBodyFuncCall(
 		}
 
 		return true
-	})
-
-	return found, errToRet
+	}
 }
 
 func functionIdentifier(fdecl *ast.FuncDecl) string {
