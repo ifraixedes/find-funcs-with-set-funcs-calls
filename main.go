@@ -283,19 +283,41 @@ func hasFuncBodyFuncCall(
 	body *ast.BlockStmt, fnCall funcCall, imports []*ast.ImportSpec, typesInfo *types.Info, fset *token.FileSet,
 ) (bool, error) {
 	var (
-		// calledFuncsToSearch = []ast.Node{}
-		hasNodeFC = &hasNodeFuncCall{}
+		nodes = []ast.Node{body}
 	)
 
-	ast.Inspect(body, hasNodeFC.inspectFn(fnCall, imports, typesInfo, fset))
+	for len(nodes) > 0 {
+		var node ast.Node
+		node, nodes = nodes[0], nodes[1:]
 
-	return hasNodeFC.found, hasNodeFC.err
+		hasNodeFC := &hasNodeFuncCall{
+			funcsToDeep: []ast.Node{},
+		}
+		ast.Inspect(node, hasNodeFC.inspectFn(fnCall, imports, typesInfo, fset))
+
+		if hasNodeFC.found || hasNodeFC.err != nil {
+			return hasNodeFC.found, hasNodeFC.err
+		}
+
+		if len(hasNodeFC.funcsToDeep) > 0 {
+			fmt.Printf("%+v\n", hasNodeFC.funcsToDeep)
+			nodes = append(nodes, hasNodeFC.funcsToDeep...)
+		}
+	}
+
+	return false, nil
 }
 
 type hasNodeFuncCall struct {
 	found       bool
 	err         error
 	funcsToDeep []ast.Node
+}
+
+func (hasNodeFC *hasNodeFuncCall) addFuncToDeep(n ast.Node) {
+	if hasNodeFC.funcsToDeep != nil {
+		hasNodeFC.funcsToDeep = append(hasNodeFC.funcsToDeep, n)
+	}
 }
 
 func (hasNodeFC *hasNodeFuncCall) inspectFn(
@@ -315,6 +337,8 @@ func (hasNodeFC *hasNodeFuncCall) inspectFn(
 		if ident, ok := callExpr.Fun.(*ast.Ident); ok {
 			if fnCall.pkg == "" && fnCall.receiver == "" && fnCall.funcName == ident.Name {
 				hasNodeFC.found = true
+			} else {
+				hasNodeFC.addFuncToDeep(ident)
 			}
 
 			return false
