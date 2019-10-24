@@ -237,6 +237,33 @@ func TestFind(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, list)
 	})
+
+	t.Run("with one passed function call", func(t *testing.T) {
+		cmdp, err := params([]string{
+			"-funcs", "net/http/cookiejar.Jar.Cookies",
+			"github.com/ifraixedes/find-funcs-with-set-funcs-calls/testdata/testpkg",
+		})
+		require.NoError(t, err)
+
+		list, err := find(cmdp.pkgsPatterns, cmdp.funcCalls)
+		require.NoError(t, err)
+		require.Len(t, list, 1)
+
+		sort.Slice(list[0].FuncNames, func(i, j int) bool {
+			return list[0].FuncNames[i] < list[0].FuncNames[j]
+		})
+
+		expectedFuncs := []string{
+			"unexportedFunc",
+			"*unexportedType.ExportedMethod",
+			"ExportedType.unexportedMethod",
+		}
+		sort.Slice(expectedFuncs, func(i, j int) bool {
+			return expectedFuncs[i] < expectedFuncs[j]
+		})
+
+		assert.Equal(t, expectedFuncs, list[0].FuncNames)
+	})
 }
 
 func TestCreateSubsets(t *testing.T) {
