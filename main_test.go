@@ -268,6 +268,22 @@ func TestCreateSubsets(t *testing.T) {
 			},
 		},
 		{
+			name: "numElems is 1",
+			in: inparams{
+				fnCalls: []funcCall{
+					{pkg: "a", funcName: "f1"},
+					{pkg: "a", receiver: "r1", funcName: "f1"},
+					{pkg: "b", funcName: "f1"},
+				},
+				numElems: 1,
+			},
+			expected: [][]funcCall{
+				[]funcCall{{pkg: "a", funcName: "f1"}},
+				[]funcCall{{pkg: "a", receiver: "r1", funcName: "f1"}},
+				[]funcCall{{pkg: "b", funcName: "f1"}},
+			},
+		},
+		{
 			name: "numElems is equal length func calls",
 			in: inparams{
 				fnCalls: []funcCall{
